@@ -1,3 +1,6 @@
 [submodule "Peg/lib/forge-std"]
 	path = Peg/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
+[submodule "Peg/lib/solmate"]
+	path = Peg/lib/solmate
+	url = https://github.com/transmissions11/solmate
