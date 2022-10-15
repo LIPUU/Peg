@@ -60,20 +60,20 @@ contract CodecTest is Test {
 
     function testRounding() public {
         uint PegToken_amount_1 = rounding(6,1,false);
-        console.log(PegToken_amount_1);
+        // console.log(PegToken_amount_1);
 
         uint PegToken_amount_2 = rounding(18,1,false);
-        console.log(PegToken_amount_2);
+        // console.log(PegToken_amount_2);
     }
 
     // export FOUNDRY_FUZZ_RUNS=100000
     // that will fuzzing 100000 times
-    function test_FUZZING_Rounding_(uint8 _decimals,uint96 before_amount) public {
-        uint8 decimals=_decimals%18;
-        uint after_amout=rounding(decimals,rounding(decimals,before_amount,false),true);
-        assertEq(before_amount,after_amout);
-        console.log(before_amount);
-        console.log(after_amout);
-    }
+    // function test_FUZZING_Rounding_(uint8 _decimals,uint96 before_amount) public {
+    //     uint8 decimals=_decimals%18;
+    //     uint after_amout=rounding(decimals,rounding(decimals,before_amount,false),true);
+    //     assertEq(before_amount,after_amout);
+    //     console.log(before_amount);
+    //     console.log(after_amout);
+    // }
     
 }

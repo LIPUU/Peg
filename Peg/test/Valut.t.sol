@@ -25,6 +25,7 @@ contract VaultTest is Test {
     Vault usdt_vault_sourceChainId_6;
 
     ZionPegToken PegUSDT;
+    ZionPegToken PegETH;
     MockChainIDChannel mockChainIDChannel;
 
     function setUp() public {
@@ -34,6 +35,9 @@ contract VaultTest is Test {
         managerContractMock=new ManagerContractMock(mockChainIDChannel);
 
         PegUSDT=new ZionPegToken("TetherUSD","usdt");
+        PegETH = new ZionPegToken("ZionETH","eth");
+        
+        PegUSDT.setManagerContract(address(managerContractMock));
         PegUSDT.setManagerContract(address(managerContractMock));
 
         usdt_sourceChainId5 = new ERC20Template("TetherUSD","usdt",6);
@@ -79,6 +83,7 @@ contract VaultTest is Test {
         assertEq(usdt_sourceChainId6.totalSupply()-3*10000 ether,usdt_sourceChainId6.balanceOf(deployer));
     }
     function helper_rounding(uint8 underlyingTokenDecimals,uint256 amount, bool fromPegTokenDecimals) internal pure returns(uint256) {
+        uint8 PEG_TOKEN_DECIMALS = 18;
         if (fromPegTokenDecimals) {
             if (underlyingTokenDecimals < PEG_TOKEN_DECIMALS) {
                 return amount / 10**(PEG_TOKEN_DECIMALS - underlyingTokenDecimals);
@@ -94,15 +99,18 @@ contract VaultTest is Test {
         }
     }
 
-    function testDepositeERC20TokenSuccess() public {
+    // FUZZING
+    function testDepositeERC20TokenSuccess(uint96 _usdt_chainID5_cross_amount,uint96 _usdt_chainID6_cross_amount) public {
         helper_initState_1();
+
+        uint usdt_chainID5_cross_amount = uint(_usdt_chainID5_cross_amount % 10000 ether)+1;
+        uint usdt_chainID6_cross_amount = uint(_usdt_chainID6_cross_amount % 10000 ether)+1;
+
         vm.startPrank(user1_EVM);
 
         // user1_EVM address before status on source chain && zion
         uint before_balance_user1_EVM_at_evm = usdt_sourceChainId5.balanceOf(user1_EVM);
-        uint before_balance_user1_EVM_at_zion = PegUSDT.balanceOf(user1_EVM);
         uint before_balance_user1_Zion_at_zion = PegUSDT.balanceOf(user1_Zion);
-        assertEq(before_balance_user1_EVM_at_zion,0);
         assertEq(before_balance_user1_Zion_at_zion,0);
 
         // zion-usdtPeg  before status on zion
@@ -113,33 +121,34 @@ contract VaultTest is Test {
         assertEq(before_chainLiquidity_at_chainID_5,0);
         assertEq(before_chainLiquidity_at_chainID_6,0);
 
-        usdt_sourceChainId5.approve(address(usdt_vault_sourceChainId_5),100 ether);
+        // ! deposit operation !
+        usdt_sourceChainId5.approve(address(usdt_vault_sourceChainId_5), usdt_chainID5_cross_amount );
         mockChainIDChannel.setCurrentlyChainID(5);
-        usdt_vault_sourceChainId_5.deposite(user1_EVM,abi.encodePacked(user1_Zion),100 ether);
+        usdt_vault_sourceChainId_5.deposite(user1_EVM,abi.encodePacked(user1_Zion), usdt_chainID5_cross_amount );
         vm.stopPrank();
 
         // user1_EVM address after status on source chain && zion
         uint after_balance_user1_EVM_at_evm = usdt_sourceChainId5.balanceOf(user1_EVM);
-        uint after_balance_user1_EVM_at_zion = PegUSDT.balanceOf(user1_EVM);
         uint after_balance_user1_Zion_at_zion = PegUSDT.balanceOf(user1_Zion);
-        assertEq(after_balance_user1_EVM_at_zion,0);
+        assertEq(PegUSDT.balanceOf(user1_EVM),0, "after deposit balance of user1_EVM at zion should be zero!" );
 
         // zion-usdtPeg  after status on zion
         uint after_totalSupply = PegUSDT.totalSupply();
         uint after_chainLiquidity_at_chainID_5 = PegUSDT.chainLiquidityMap(5);
-        uint after_chainLiquidity_at_chainID_6 = PegUSDT.chainLiquidityMap(6);
-        assertEq(after_chainLiquidity_at_chainID_6,0);
+        assertEq( PegUSDT.chainLiquidityMap(6),0,"after deposit chainLiquidity of chainID_6 should be zero!" );
 
-        assertEq(after_balance_user1_EVM_at_evm, before_balance_user1_EVM_at_evm - 100 ether, 
+        assertEq(after_balance_user1_EVM_at_evm, before_balance_user1_EVM_at_evm - usdt_chainID5_cross_amount , 
                 "#ERROR# after deposits user1_EVM's PegUSDT amount is incorrect!");
 
-        assertEq(after_balance_user1_Zion_at_zion, before_balance_user1_Zion_at_zion + 100 ether , 
+        uint side_chain_amount_convert_to_PegToken_amount = helper_rounding(6,usdt_chainID5_cross_amount,false);
+
+        assertEq(after_balance_user1_Zion_at_zion, before_balance_user1_Zion_at_zion + side_chain_amount_convert_to_PegToken_amount , 
                 "#ERROR# after deposits user1_zion's PegUSDT amounts is incorrect!");
 
-        assertEq(after_totalSupply, before_totalSupply + 100 ether, 
+        assertEq(after_totalSupply, before_totalSupply + side_chain_amount_convert_to_PegToken_amount, 
                 "#ERROR# after deposits PegUSDT total supply is incorrect!");
-                
-        assertEq(after_chainLiquidity_at_chainID_5, before_chainLiquidity_at_chainID_5 + 100 ether, 
+
+        assertEq(after_chainLiquidity_at_chainID_5, before_chainLiquidity_at_chainID_5 + side_chain_amount_convert_to_PegToken_amount, 
                 "#ERROR# after deposits PegUSDT chainLiquidity is incorrect!");
         
     }
