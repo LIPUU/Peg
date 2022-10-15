@@ -35,10 +35,14 @@ contract ZionPegToken is Ownable, Pausable, ReentrancyGuard, Core, ERC20 {
     event RelayInterrupted(uint64 fromChainId, address zionReceiveAddress, uint amount, string err);
     event RevertEvent(string err);
 
+    function setManagerContract(address _managerContractAddress) public onlyOwner {
+        managerContractAddress=_managerContractAddress;
+    }
+
     // User functions 
     function withdraw(bytes memory toAddress, uint64 toChainId, uint256 amount) public nonReentrant whenNotPaused {
         require(amount != 0, "amount cannot be zero!");
-        _burn(msg.sender, amount);
+        _burn(msg.sender, amount); // this是某种资产的映射PegToken
         sendWithdrawToBranch(toChainId, toAddress, amount);
     }
     
@@ -48,7 +52,7 @@ contract ZionPegToken is Ownable, Pausable, ReentrancyGuard, Core, ERC20 {
     }
 
     function bindBranch(uint64 branchChainId, bytes memory branchAddress) onlyOwner public {
-        branchMap[branchChainId] = branchAddress;
+        branchMap[branchChainId] = branchAddress; // 记录目标链上对应的vault合约地址
         if (branchAddress.length == 0) {
             removeBranch(branchChainId);
         } else {
@@ -57,6 +61,7 @@ contract ZionPegToken is Ownable, Pausable, ReentrancyGuard, Core, ERC20 {
         emit BindBranchEvent(branchChainId, branchAddress); 
     }
 
+    // 假设本PigToken是usdt，那么branchChainIds就是连接的各条区块链，branchAddrs就是对应的各条区块链上的usdt的地址
     function bindBranchBatch(uint64[] memory branchChainIds, bytes[] memory branchAddrs) onlyOwner public {
         require(branchChainIds.length == branchAddrs.length, "input lists length do not match");
         for (uint i = 0; i < branchChainIds.length; i++) {
@@ -81,7 +86,7 @@ contract ZionPegToken is Ownable, Pausable, ReentrancyGuard, Core, ERC20 {
     }
 
     function pauseAllBranchs(bool needWait) onlyOwner public {
-        uint64[] memory chainIds = getBranchs();
+        uint64[] memory chainIds = getBranchs(); // 有没有可能里面有空的
         bytes memory message = Codec.encodePauseMessage(needWait);
         for (uint i = 0; i < chainIds.length; i++) {
             sendMessageToBranch(chainIds[i], message);
@@ -141,9 +146,9 @@ contract ZionPegToken is Ownable, Pausable, ReentrancyGuard, Core, ERC20 {
     }
 
     // Handle message from branch
-    function handleBranchMessage(uint64 branchChainId, bytes memory message) override internal {
+    function handleBranchMessage(uint64 branchChainId, bytes memory message) override internal { 
         Codec.TAG tag = Codec.getTag(message);
-        if (Codec.compareTag(tag, Codec.DEPOSITE_TAG)) {
+        if (Codec.compareTag(tag, Codec.DEPOSITE_TAG)) { // 只允许存款和跨链
             handleDeposite(branchChainId, message);
         } else if (Codec.compareTag(tag, Codec.DEPOSITE_AND_WITHDRAW_TAG)) {
             handleDepositeAndWithdraw(branchChainId, message);
@@ -184,6 +189,7 @@ contract ZionPegToken is Ownable, Pausable, ReentrancyGuard, Core, ERC20 {
     }
 
     function handleDeposite(uint64 fromChainId, bytes memory message) internal {
+        // toAddress is address at zion. refundAddress is source chain address(may be it should be msg.sender)
         (bytes memory toAddressBytes, bytes memory refundAddress, uint256 amount) = Codec.decodeDepositeMessage(message);
         (bool isValidMessage, string memory err) = checkMessage(fromChainId, message);
         if (!isValidMessage) {
@@ -196,6 +202,7 @@ contract ZionPegToken is Ownable, Pausable, ReentrancyGuard, Core, ERC20 {
         emit DepositeEvent(fromChainId, toAddress, amount);
     }
 
+    // 调用handleDepositeAndWithdraw之后，relayer最终会调用到side chain得vault中handleCoreMessage
     function handleDepositeAndWithdraw(uint64 fromChainId, bytes memory message) internal {
         (bytes memory toAddress, bytes memory refundAddress, bytes memory zionReceiveAddress, uint64 toChainId, uint256 amount) = Codec.decodeDepositeAndWithdrawMessage(message);
         (bool isValidMessage, string memory err) = checkMessage(fromChainId, message);

@@ -21,7 +21,7 @@ contract Vault is Branch, ReentrancyGuard, Pausable {
 
     constructor(address _managerContractAddress, address _tokenUnderlying, bytes memory _coreAddress, uint64 _coreChainId) {
         managerContractAddress = _managerContractAddress;
-        coreAddress = _coreAddress;
+        coreAddress = _coreAddress; // corresponding PegToken address on Zion
         coreChainId = _coreChainId;
         underlyingToken = _tokenUnderlying;
         if (_tokenUnderlying == ETH_ADDRESS) {
@@ -36,6 +36,7 @@ contract Vault is Branch, ReentrancyGuard, Pausable {
     event WithdrawEvent(address toAddress, uint256 amount, uint256 pegAmount);
     event RollBackEvent(address refundAddress, uint amount, uint256 pegAmount);
 
+    // toAddress is user address of zion
     function deposite(address refundAddress, bytes memory toAddress, uint256 amount) public payable nonReentrant whenNotPaused {
         uint256 pegAmount = rounding(amount, false);
 
@@ -49,6 +50,7 @@ contract Vault is Branch, ReentrancyGuard, Pausable {
     }
 
     // when withdraw failed, if `zionReceiveAddress` is valid zion address, fund will be sent to given address in zion, otherwise it will be sent back to refundAddress in source chain 
+    // failed maybe because amount isn't enough?
     function depositeAndWithdraw(address refundAddress, bytes memory zionReceiveAddress, bytes memory toAddress, uint64 toChainId, uint256 amount) public payable nonReentrant whenNotPaused {
         uint256 pegAmount = rounding(amount, false);
 
@@ -101,8 +103,12 @@ contract Vault is Branch, ReentrancyGuard, Pausable {
             require(msg.value == amount, "transferred ether is not equal to amount!");
         } else {
             require(msg.value == 0, "there should be no ether transfer!");
+            require(amount!=0,"amout is 0");
             IERC20 erc20Token = IERC20(token);
-            erc20Token.safeTransferFrom(token, msg.sender, amount);
+            uint beforeTransfer=IERC20(token).balanceOf(address(this));
+            erc20Token.safeTransferFrom(msg.sender,address(this), amount);
+            uint afterTransfer=IERC20(token).balanceOf(address(this));
+            require(afterTransfer==beforeTransfer+amount,"balance is incorrect");
         }
     }
 
@@ -112,7 +118,10 @@ contract Vault is Branch, ReentrancyGuard, Pausable {
             payable(address(uint160(toAddress))).transfer(amount);
         } else {
             IERC20 erc20Token = IERC20(token);
+            uint beforeTransfer=IERC20(token).balanceOf(address(this));
             erc20Token.safeTransfer(toAddress, amount);
+            uint afterTransfer=IERC20(token).balanceOf(address(this));
+            require(afterTransfer==beforeTransfer-amount,"balance is incorrect");
         }
     }
 
