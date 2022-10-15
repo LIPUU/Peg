@@ -1,0 +1,3 @@
+core/=src/core
+slomate/=lib/solmate/src/
+forge-std/=lib/forge-std/src/
