@@ -6,10 +6,10 @@ contract ERC20Template is ERC20 {
         string memory _symbol,
         uint8 _decimals
     ) ERC20(_name,_symbol,_decimals){
-        
+        initialize();
     }
     
-    function initialize() public {
+    function initialize() internal {
         _mint(msg.sender,initialSupply);
     } 
 }

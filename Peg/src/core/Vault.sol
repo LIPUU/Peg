@@ -50,8 +50,8 @@ contract Vault is Branch, ReentrancyGuard, Pausable {
     }
 
     // when withdraw failed, if `zionReceiveAddress` is valid zion address, fund will be sent to given address in zion, otherwise it will be sent back to refundAddress in source chain 
-    // failed maybe because amount isn't enough?
     function depositeAndWithdraw(address refundAddress, bytes memory zionReceiveAddress, bytes memory toAddress, uint64 toChainId, uint256 amount) public payable nonReentrant whenNotPaused {
+        
         uint256 pegAmount = rounding(amount, false);
 
         require(pegAmount != 0, "amount cannot be zero!");

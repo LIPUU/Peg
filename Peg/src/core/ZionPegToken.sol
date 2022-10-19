@@ -42,7 +42,12 @@ contract ZionPegToken is Ownable, Pausable, ReentrancyGuard, Core, ERC20 {
     // User functions 
     function withdraw(bytes memory toAddress, uint64 toChainId, uint256 amount) public nonReentrant whenNotPaused {
         require(amount != 0, "amount cannot be zero!");
+
+        require(chainLiquidityMap[toChainId] >= amount,"target chain liquidity is not enough!");
+        chainLiquidityMap[toChainId]-=amount;
+        
         _burn(msg.sender, amount); // this是某种资产的映射PegToken
+
         sendWithdrawToBranch(toChainId, toAddress, amount);
     }
     
@@ -164,6 +169,7 @@ contract ZionPegToken is Ownable, Pausable, ReentrancyGuard, Core, ERC20 {
         return (true, "");
     }
 
+    // refundAddres is user origin chain address
     function handleRelayInterrupted(bytes memory zionReceiveAddressBytes, uint64 branchChainId, bytes memory refundAddress, uint amount, string memory err) internal {
         if (zionReceiveAddressBytes.length == 20) {
             address zionReceiveAddress = Utils.bytesToAddress(zionReceiveAddressBytes);
@@ -219,6 +225,8 @@ contract ZionPegToken is Ownable, Pausable, ReentrancyGuard, Core, ERC20 {
             handleRelayInterrupted(zionReceiveAddress, fromChainId, refundAddress, amount, "deposite_&_withdraw error: invalid toBranch");
             return;
         }
+
+        // 每种underlying token在其各个侧链上vault中锁着的数量与其对应的pegToken chainLiquidityMap 中记录的、按pegToken换算的数量严格一致
         if (chainLiquidityMap[toChainId] < amount) {
             handleRelayInterrupted(zionReceiveAddress, fromChainId, refundAddress, amount, "deposite_&_withdraw error: target chain do not have enough liquidity");
             return;

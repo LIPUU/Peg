@@ -59,11 +59,10 @@ contract CodecTest is Test {
     }
 
     function testRounding() public {
-        uint PegToken_amount_1 = rounding(6,1,false);
-        // console.log(PegToken_amount_1);
-
-        uint PegToken_amount_2 = rounding(18,1,false);
-        // console.log(PegToken_amount_2);
+        uint source_to_peg_amount = rounding(6,10000*10**6,false);
+        uint peg_to_source_amount = rounding(8,source_to_peg_amount,true);
+        console.log(source_to_peg_amount);
+        console.log(peg_to_source_amount);
     }
 
     // export FOUNDRY_FUZZ_RUNS=100000

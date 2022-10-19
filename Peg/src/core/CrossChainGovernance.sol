@@ -59,7 +59,7 @@ abstract contract Branch {
     bytes constant CORE_RECEIVE_METHOD_BYTES = "0x726563656976654d657373616765"; // receiveMessage
 
     address managerContractAddress;
-    bytes coreAddress;
+    bytes public coreAddress;
     uint64 coreChainId;
 
     modifier onlyManagerContract {
@@ -80,9 +80,8 @@ abstract contract Branch {
     ) virtual internal {
         require(
             CrossChainManager(managerContractAddress).crossChain(
-                coreChainId,
-                coreAddress, 
-                // corresponding PegToken address on Zion. Each side chain Vault contract corresponds a Zion PegToken(coreAddress)
+                coreChainId, // zionChainId
+                coreAddress, // corresponding PegToken address on Zion. Each side chain Vault contract corresponds a Zion PegToken(coreAddress)
                 CORE_RECEIVE_METHOD_BYTES,
                 message),
             "CrossChainManager crossChain executed error!"
