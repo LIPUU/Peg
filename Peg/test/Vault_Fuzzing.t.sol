@@ -9,6 +9,7 @@ import {ManagerContractMock,MockChainIDChannel} from "./ManagerContractMock.sol"
 import "forge-std/console.sol";
 import {Helper} from "./helper.sol";
 import "src/libs/token/ERC20/ERC20.sol";
+import "./calHelper.sol";
 
 contract AllTest is Test {
     uint constant USER_NUMBER = 100;
@@ -35,21 +36,26 @@ contract AllTest is Test {
     MockChainIDChannel mockChainIDChannel;
     ManagerContractMock managerContractMock;
     
-    // users status on each blockChain. for example:
+    // users state on each blockChain. for example:
     // chainID => ( assetAddress  => ( user_address => balance ) )
     // chainID 1 is zion chain, chainID 5 6 7 is sideChain
     // assetAddress can be sideChain vault address or zion PegAddress
-    mapping(uint64 => mapping(address => mapping(address=>uint) ) ) userStatus;
+    mapping(uint64 => mapping(address => mapping(address=>uint) ) ) userState;
     
-    // sideChain vault status
+    // sideChain vault state
     // chainID => vault address => balance
-    mapping(uint64 => mapping(address=>uint)) vaultStatus;
+    mapping(uint64 => mapping(address=>uint)) vaultState;
 
-    // zion status
+    // zion state
     // one PegToken totalSupply
-    mapping(address=>uint) PegTokensTotalSupplyStatus;
-    // inner liquidity status of each PegToken of each side chain
+    mapping(address=>uint) PegTokensTotalSupplyState;
+    // inner liquidity state of each PegToken of each side chain
     mapping(address=>mapping(uint64=>uint)) PegTokensSideChainLiquidity;
+
+    using calHelper for mapping(uint64 =>mapping(address=>mapping(address=>uint))); // userState type
+    using calHelper for mapping(uint64 =>mapping(address=>uint)); // vaultState type 
+    using calHelper for mapping(address=>uint); // PegTokensTotalSupplyState type
+    using calHelper for mapping(address=>mapping(uint64=>uint)); // PegTokensSideChainLiquidity type
 
     function setUp() public {
         mockChainIDChannel=new MockChainIDChannel();
@@ -92,10 +98,10 @@ contract AllTest is Test {
             [[vaults[0],vaults[3],vaults[6]],[vaults[1],vaults[4],vaults[7]],[vaults[2],vaults[5],vaults[8]]]
         );
         
-        // bind some status for PegToken
+        // bind some state for PegToken
         for (uint i=0;i<pegTokens.length;++i){
             bytes[] memory  branchAddrs = new bytes[](3);
-            if(i==0){
+            if(i==0) {
                 branchAddrs[0]=abi.encodePacked(address(vaults[0])); 
                 branchAddrs[1]=abi.encodePacked(address(vaults[3]));
                 branchAddrs[2]=abi.encodePacked(address(vaults[6]));
@@ -133,7 +139,7 @@ contract AllTest is Test {
             assertEq(users_on_ethereum[i].balance,10000 ether,"fuck");
         }
 
-        // initialize tokens of ethereum status for users on ethereum
+        // initialize tokens of ethereum state for users on ethereum
         for(uint i=0;i<2;++i){
             for(uint j=0;j<users_on_ethereum.length;++j){
                 tokens[i].transfer(users_on_ethereum[j],10**6*10000 wei);
@@ -177,12 +183,14 @@ contract AllTest is Test {
             if(vaults[i].underlyingTokenDecimals()==18) {
                 ERC20(vaults[i].underlyingToken()).approve(address(vaults[i]),10000 ether);
                 vaults[i].deposite(deployer,abi.encodePacked(deployer),10000 ether);
+                
 
                 assertEq(ERC20(vaults[i].underlyingToken()).balanceOf(deployer),100000000000000 ether-(10000 ether*100+10000 ether));
 
             }else if(vaults[i].underlyingTokenDecimals()==6){
                 ERC20(vaults[i].underlyingToken()).approve(address(vaults[i]),10**6*10000);
                 vaults[i].deposite(deployer,abi.encodePacked(deployer),10**6*10000);
+                
 
                 assertEq(ERC20(vaults[i].underlyingToken()).balanceOf(deployer),100000000000000 ether-10**6*10000*101);
                 
@@ -191,19 +199,29 @@ contract AllTest is Test {
             }
         }
 
+        vm.stopPrank();
+    }
+
+    function printLiquidity() public view {
         for(uint i=0;i<pegTokens.length;++i){
             console.log(pegTokens[i].chainLiquidityMap(5));
             console.log(pegTokens[i].chainLiquidityMap(6));
             console.log(pegTokens[i].chainLiquidityMap(7));
         }
-
-        vm.stopPrank();
     }
 
-    function testConsole() public {
-        initUserBalanceState();
+    function testRunRandomTransaction() public {
+        initUserBalanceState(); // initialize status
+        string[] memory command = new string[](1);
+        command[0] = "./random_transaction_generator";
+        bytes memory res = vm.ffi(inputs);
+
+        uint _operationType;
+        assembly {
+            _operationType:=mload(add(a,0x20))
+        }
+        require(_operationType==1);
     }
 
-    
     
 }

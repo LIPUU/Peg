@@ -74,5 +74,40 @@ contract CodecTest is Test {
     //     console.log(before_amount);
     //     console.log(after_amout);
     // }
+
+    function someFunction() public {
+        bytes memory a=abi.encodePacked(hex"00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000005c0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000e000000000000000000000000000000000000000000000000000000000000001a0000000000000000000000000000000000000000000000000000000000000014");
+        uint _operationType;
+        assembly {
+            _operationType:=mload(add(a,0x20))
+        }
+        require(_operationType==0);
+
+        (uint8 operationType,uint64 callerUserChainID,uint8 callerUserIndex,uint8 asset,uint8 refundIndex,uint8 zionUserIndex,uint256 amount_)=abi.decode(a,(uint8,uint64,uint8,uint8,uint8,uint8,uint256));
+        console.logUint(operationType);
+        console.logUint(callerUserChainID);
+        console.logUint(callerUserIndex);
+        console.logUint(asset);
+        console.logUint(refundIndex);
+        console.logUint(zionUserIndex);
+        console.logUint(amount_);
+        
+    }
     
+    function testSomeThing() public {
+        someFunction();
+    }
+
+    function testSomeaaaaaA() public {
+        uint8 operationType=0;
+        uint64 callerUserChainID=6;
+        uint8 callerUserIndex=92;
+        uint8 asset=2;
+        uint8 refundIndex=14;
+        uint8 zionUserIndex=26;
+        uint256 amount=20;
+        bytes memory f=abi.encode(operationType,callerUserChainID,callerUserIndex,asset,refundIndex,zionUserIndex,amount);
+        console.log(f.length);
+
+    }
 }
