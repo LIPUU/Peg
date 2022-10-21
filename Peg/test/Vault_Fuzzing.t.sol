@@ -210,17 +210,59 @@ contract AllTest is Test {
         }
     }
 
-    function testRunRandomTransaction() public {
+    function testRandomTransaction() public {
         initUserBalanceState(); // initialize status
         string[] memory command = new string[](1);
         command[0] = "./random_transaction_generator";
-        bytes memory res = vm.ffi(inputs);
 
-        uint _operationType;
-        assembly {
-            _operationType:=mload(add(a,0x20))
+        bytes memory randomTransaction;
+        for (uint i=0;i<100;++i){
+            randomTransaction = vm.ffi(command);
+            uint operationType;
+            assembly {
+                operationType:=mload(add(randomTransaction,0x20))
+            }
+            require(operationType==0 || operationType==1 || operationType==2,"data from ffi is incorrect!");
+            
+            // 0 is deposit
+            if (operationType==0) {
+                (   
+                    uint8 _operationType,
+                    uint64 callerUserChainID,
+                    uint8 callerUserAddressIndex,
+                    uint8 asset,
+                    uint8 refundAddressIndex,
+                    uint8 zionToAddressIndex,
+                    uint256 amount
+                )=abi.decode(randomTransaction,(uint8,uint64,uint8,uint8,uint8,uint8,uint256));
+
+            }else if (operationType == 1) { // 1 is depositAndWith 
+                (
+                    uint8 _operationType,
+                    uint64 callerUserChainID,
+                    uint8 callerUserIndex,
+                    uint8 asset,
+                    uint8 refundAddressIndex,
+                    uint8 zionToAddressIndex,
+                    uint8 targetAddressIndex,
+                    uint64 targetChainID,
+                    uint256 amount)=abi.decode(randomTransaction,(uint8,uint64,uint8,uint8,uint8,uint8,uint8,uint64,uint256));
+
+
+            }else if (operationType == 2) { // 2 is withdraw
+                (
+                    uint8 _operationType,
+                    uint8 zionCallerAddressIndex,
+                    uint8 asset,
+                    uint8 targetAddressIndex,
+                    uint64 targetChainID,
+                    uint256 amount)=abi.decode(randomTransaction,(uint8,uint8,uint8,uint8,uint64,uint256));
+
+            }
+
         }
-        require(_operationType==1);
+
+        
     }
 
     
