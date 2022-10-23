@@ -52,16 +52,27 @@ contract ManagerContractMock {
         bytes calldata txData // Codec.encodeDepositeMessage(toAddress, Utils.addressToBytes(refundAddress), pegAmount)
     ) external returns (bool) {
         if (isFromPegToken[msg.sender]) { // core call vault
-            console.log(msg.sender);
             // 1 is zion ChainID
             Vault(findVaultAddress[msg.sender][toChainId]).receiveMessage(txData,abi.encodePacked(msg.sender),1);
+            
             return true;
         } else { // else is vault call core
             uint64 fromChainID = mockChainIDChannel.currentlyFromChainID();
-            address _toContract = abi.decode(toContract,(address)); // corresponding PegToken
+            address _toContract = bytesToAddress(toContract); // corresponding PegToken
             ZionPegToken(_toContract).receiveMessage(txData,abi.encodePacked(msg.sender),fromChainID);
             return true;
         }        
+    }
+
+    function bytesToAddress(bytes memory _bs) internal pure returns (address addr)
+    {
+        require(_bs.length == 20, "bytes length does not match address");
+        assembly {
+            // for _bs, first word store _bs.length, second word store _bs.value
+            // load 32 bytes from mem[_bs+20], convert it into Uint160, meaning we take last 20 bytes as addr (address).
+            addr := mload(add(_bs, 0x14))
+        }
+
     }
 }
 

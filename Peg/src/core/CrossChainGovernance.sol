@@ -71,7 +71,10 @@ abstract contract Branch {
     // coreAddress is corresponding PegToken on Zion
     modifier onlyCore(bytes memory fromContractAddr, uint64 fromChainId) {
         require(coreChainId == fromChainId, "from chain is not core chain"); 
-        require(Utils.equalStorage(coreAddress, fromContractAddr), "from contract is not core contract");
+        // require(Utils.equalStorage(coreAddress, fromContractAddr), "from contract is not core contract");
+        address _coreAddress = Utils.bytesToAddress(coreAddress);
+        address _fromContractAddr=Utils.bytesToAddress(fromContractAddr);
+        require(_coreAddress==_fromContractAddr);
         _;
     }
 

@@ -80,24 +80,24 @@ contract AllTest is Test {
         }
 
         // deploy ether vault on ethereum
-        vaults.push(new Vault(address(managerContractMock),address(0),abi.encode(address(pegTokens[0])),1));
+        vaults.push(new Vault(address(managerContractMock),address(0),abi.encodePacked(address(pegTokens[0])),1));
         for (uint i=0;i<decimalsOnEthereum.length; ++i) {
             ERC20Template token_=new ERC20Template(nameAndSymbolOnEthereum[i],nameAndSymbolOnEthereum[i],decimalsOnEthereum[i]);
             tokens.push(token_);
-            vaults.push(new Vault(address(managerContractMock),address(token_),abi.encode(address(pegTokens[i+1])),1));
+            vaults.push(new Vault(address(managerContractMock),address(token_),abi.encodePacked(address(pegTokens[i+1])),1));
             // (address _managerContractAddress, address _tokenUnderlying, bytes memory _coreAddress, uint64 _coreChainId)
         }
 
         for (uint i=0;i<decimalsOnBsc.length; ++i) {
             ERC20Template token_ = new ERC20Template(nameAndSymbolOnBsc[i],nameAndSymbolOnBsc[i],decimalsOnBsc[i]);
             tokens.push(token_);
-            vaults.push(new Vault(address(managerContractMock),address(token_),abi.encode(address(pegTokens[i])),1));
+            vaults.push(new Vault(address(managerContractMock),address(token_),abi.encodePacked(address(pegTokens[i])),1));
         }
 
         for (uint i=0;i<decimalsOnPolygon.length; ++i) {
             ERC20Template token_ = new ERC20Template(nameAndSymbolOnPolygon[i],nameAndSymbolOnPolygon[i],decimalsOnPolygon[i]);
             tokens.push(token_);
-            vaults.push(new Vault(address(managerContractMock),address(token_),abi.encode(address(pegTokens[i])),1));
+            vaults.push(new Vault(address(managerContractMock),address(token_),abi.encodePacked(address(pegTokens[i])),1));
         }
 
         managerContractMock.bindPegToVault(
@@ -296,7 +296,7 @@ contract AllTest is Test {
         command[0] = "./random_transaction_generator";
 
         bytes memory randomTransaction;
-        for (uint i=0;i<100;++i) {
+        for (uint i=0;i<1;++i) {
             randomTransaction = vm.ffi(command);
             uint operationType;
             assembly {
@@ -443,6 +443,7 @@ contract AllTest is Test {
                     // } catch {
                     //     console.log("wrong");
                     // }
+
                     vault.depositeAndWithdraw{value: nativeEtherAmount}(refundAddress, abi.encodePacked(zionToAddress),
                                                                                  abi.encodePacked(targetChainAddress),targetChainID,amount);
                     
