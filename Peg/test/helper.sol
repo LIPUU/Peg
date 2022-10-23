@@ -1,6 +1,6 @@
 import {ERC20Template} from "test/token/ERC20Template.sol"; 
 
-contract Helper {
+library Helper {
     function helper_rounding(uint8 underlyingTokenDecimals,uint256 amount, bool fromPegTokenDecimals) internal pure returns(uint256) {
         uint8 PEG_TOKEN_DECIMALS = 18;
         if (fromPegTokenDecimals) {
