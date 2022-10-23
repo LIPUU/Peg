@@ -296,7 +296,7 @@ contract AllTest is Test {
         command[0] = "./random_transaction_generator";
 
         bytes memory randomTransaction;
-        for (uint i=0;i<1000;++i) {
+        for (uint i=0;i<100;++i) {
             randomTransaction = vm.ffi(command);
             uint operationType;
             assembly {
@@ -437,12 +437,15 @@ contract AllTest is Test {
                     }
 
                     mockChainIDChannel.setCurrentlyChainID(callerUserChainID);
-                    try vault.depositeAndWithdraw{value: nativeEtherAmount}(refundAddress, abi.encodePacked(zionToAddress),
-                                                                                abi.encodePacked(targetChainAddress),targetChainID,amount) {
-                        console.log("right");
-                    } catch {
-                        console.log("wrong");
-                    }
+                    // try vault.depositeAndWithdraw{value: nativeEtherAmount}(refundAddress, abi.encodePacked(zionToAddress),
+                    //                                                             abi.encodePacked(targetChainAddress),targetChainID,amount) {
+                    //     console.log("right");
+                    // } catch {
+                    //     console.log("wrong");
+                    // }
+                    vault.depositeAndWithdraw{value: nativeEtherAmount}(refundAddress, abi.encodePacked(zionToAddress),
+                                                                                 abi.encodePacked(targetChainAddress),targetChainID,amount);
+                    
                 
                     vm.stopPrank();
                 // 失败原因分外部硬性失败和内部失败。硬性失败值跨链发起方钱不够。内部失败指目标链流动性不够。

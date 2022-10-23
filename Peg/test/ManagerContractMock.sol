@@ -51,10 +51,11 @@ contract ManagerContractMock {
         bytes calldata method, // receiveMessage
         bytes calldata txData // Codec.encodeDepositeMessage(toAddress, Utils.addressToBytes(refundAddress), pegAmount)
     ) external returns (bool) {
-        if (isFromPegToken[msg.sender]) {
+        if (isFromPegToken[msg.sender]) { // core call vault
             console.log(msg.sender);
             // 1 is zion ChainID
             Vault(findVaultAddress[msg.sender][toChainId]).receiveMessage(txData,abi.encodePacked(msg.sender),1);
+            return true;
         } else { // else is vault call core
             uint64 fromChainID = mockChainIDChannel.currentlyFromChainID();
             address _toContract = abi.decode(toContract,(address)); // corresponding PegToken
