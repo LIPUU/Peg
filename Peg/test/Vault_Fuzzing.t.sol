@@ -10,6 +10,7 @@ import "forge-std/console.sol";
 import {Helper} from "./helper.sol";
 import "src/libs/token/ERC20/ERC20.sol";
 import "./calHelper.sol";
+import "./transactionType.sol";
 
 contract AllTest is Test {
     uint constant USER_NUMBER = 100;
@@ -306,64 +307,56 @@ contract AllTest is Test {
             
             // 0 is deposit
             if (operationType==0) {
-                (   
-                    uint8 _operationType,
-                    uint64 callerUserChainID,
-                    uint8 callerUserAddressIndex,
-                    uint8 asset,
-                    uint8 refundAddressIndex,
-                    uint8 zionToAddressIndex,
-                    uint256 amount
-                )=abi.decode(randomTransaction,(uint8,uint64,uint8,uint8,uint8,uint8,uint256));
+                transactionType.DepositType memory depositData = abi.decode(randomTransaction,(transactionType.DepositType));
                 
                 address callerAddress;
                 Vault vault;
                 address refundAddress;
-                address zionToAddress = users_on_zion[zionToAddressIndex];
+                address zionToAddress = users_on_zion[depositData.zionToAddressIndex];
 
                 
 
-                if (callerUserChainID == 5) {
-                    callerAddress = users_on_ethereum[callerUserAddressIndex];
-                    refundAddress = users_on_ethereum[refundAddressIndex];
-                    vault=vaults[0+asset];
-                } else if (callerUserChainID == 6) {
-                    callerAddress = users_on_bsc[callerUserAddressIndex];
-                    refundAddress = users_on_bsc[refundAddressIndex];
-                    vault=vaults[3+asset];
-                } else if (callerUserChainID == 7 ) {
-                    callerAddress = users_on_polygon[callerUserAddressIndex];
-                    refundAddress = users_on_polygon[refundAddressIndex];
-                    vault=vaults[6+asset];
+                if (depositData.callerUserChainID == 5) {
+                    callerAddress = users_on_ethereum[depositData.callerUserAddressIndex];
+                    refundAddress = users_on_ethereum[depositData.refundAddressIndex];
+                    vault=vaults[0+depositData.asset];
+                } else if (depositData.callerUserChainID == 6) {
+                    callerAddress = users_on_bsc[depositData.callerUserAddressIndex];
+                    refundAddress = users_on_bsc[depositData.refundAddressIndex];
+                    vault=vaults[3 + depositData.asset];
+                } else if (depositData.callerUserChainID == 7 ) {
+                    callerAddress = users_on_polygon[depositData.callerUserAddressIndex];
+                    refundAddress = users_on_polygon[depositData.refundAddressIndex];
+                    vault=vaults[6 + depositData.asset];
                 }
                 
 
-                ZionPegToken pegToken = pegTokens[asset];
+                ZionPegToken pegToken = pegTokens[depositData.asset];
 
                 vm.startPrank(callerAddress);
 
                 uint256 nativeEtherAmount;
-                if (!(callerUserChainID==5 && asset==0)) { // chain5 native ether doesn't need approve
-                    ERC20(vault.underlyingToken()).approve(address(vault),amount);
+                if (!(depositData.callerUserChainID==5 && depositData.asset==0)) { // chain5 native ether doesn't need approve
+                    ERC20(vault.underlyingToken()).approve(address(vault),depositData.amount);
                     nativeEtherAmount = 0;
                 } else {
-                    nativeEtherAmount = amount;
+                    nativeEtherAmount = depositData.amount;
                 }
                 
-                mockChainIDChannel.setCurrentlyChainID(callerUserChainID);
-                try vault.deposite{value: nativeEtherAmount}(refundAddress, abi.encodePacked(zionToAddress),amount) {
+                mockChainIDChannel.setCurrentlyChainID(depositData.callerUserChainID);
+                try vault.deposite{value: nativeEtherAmount}(refundAddress, abi.encodePacked(zionToAddress),depositData.amount) {
                     // increasing
-                    uint pegAmount = Helper.helper_rounding(decimalRecord[callerUserChainID][asset],amount,false);
+                    uint pegAmount = Helper.helper_rounding(decimalRecord[depositData.callerUserChainID][depositData.asset],depositData.amount,false);
                     userState[1][address(pegToken)][zionToAddress] += pegAmount;
                     PegTokensTotalSupplyState[address(pegToken)] += pegAmount;
-                    PegTokensSideChainLiquidity[address(pegToken)][callerUserChainID] += pegAmount;
-                    vaultState[callerUserChainID][address(vault)] += amount; // for chainId5 asset0 , this balance is ether
+                    PegTokensSideChainLiquidity[address(pegToken)][depositData.callerUserChainID] += pegAmount;
+                    vaultState[depositData.callerUserChainID][address(vault)] += depositData.amount; // for chainId5 asset0 , this balance is ether
 
                     // reducing
-                    if (callerUserChainID==5 && asset==0) { // if it is native token on ethereum
-                        userState[callerUserChainID][address(0)][callerAddress] -= amount;
+                    if (depositData.callerUserChainID==5 && depositData.asset==0) { // if it is native token on ethereum
+                        userState[depositData.callerUserChainID][address(0)][callerAddress] -= depositData.amount;
                     }else {
-                        userState[callerUserChainID][vault.underlyingToken()][callerAddress] -= amount;
+                        userState[depositData.callerUserChainID][vault.underlyingToken()][callerAddress] -= depositData.amount;
                     }
 
                     // console.log("right",callerUserChainID,asset,amount);
@@ -373,13 +366,13 @@ contract AllTest is Test {
                 
                 assertEq(userState[1][address(pegToken)][zionToAddress],pegToken.balanceOf(zionToAddress));
                 assertEq(PegTokensTotalSupplyState[address(pegToken)],pegToken.totalSupply());
-                assertEq(PegTokensSideChainLiquidity[address(pegToken)][callerUserChainID],pegToken.chainLiquidityMap(callerUserChainID));
-                if (callerUserChainID==5&&asset==0) { // native ether
-                    assertEq(vaultState[callerUserChainID][address(vault)], address(vault).balance);
-                    assertEq(userState[callerUserChainID][address(0)][callerAddress],callerAddress.balance);
+                assertEq(PegTokensSideChainLiquidity[address(pegToken)][depositData.callerUserChainID],pegToken.chainLiquidityMap(depositData.callerUserChainID));
+                if (depositData.callerUserChainID==5 && depositData.asset==0) { // native ether
+                    assertEq(vaultState[depositData.callerUserChainID][address(vault)], address(vault).balance);
+                    assertEq(userState[depositData.callerUserChainID][address(0)][callerAddress],callerAddress.balance);
                 }else {
-                    assertEq(vaultState[callerUserChainID][address(vault)], ERC20(vault.underlyingToken()).balanceOf(address(vault)));
-                    assertEq(userState[callerUserChainID][vault.underlyingToken()][callerAddress],ERC20(vault.underlyingToken()).balanceOf(callerAddress));
+                    assertEq(vaultState[depositData.callerUserChainID][address(vault)], ERC20(vault.underlyingToken()).balanceOf(address(vault)));
+                    assertEq(userState[depositData.callerUserChainID][vault.underlyingToken()][callerAddress],ERC20(vault.underlyingToken()).balanceOf(callerAddress));
                 }
                 
                 vm.stopPrank();
@@ -387,110 +380,105 @@ contract AllTest is Test {
                 
                 
             }else if (operationType == 1) { // 1 is depositAndWithdraw
-                (
-                    uint8 _operationType,
-                    uint64 callerUserChainID,
-                    uint8 callerUserAddressIndex,
-                    uint8 asset,
-                    uint8 refundAddressIndex,
-                    uint8 zionToAddressIndex,
-                    uint8 targetAddressIndex,
-                    uint64 targetChainID,
-                    uint256 amount)=abi.decode(randomTransaction,(uint8,uint64,uint8,uint8,uint8,uint8,uint8,uint64,uint256));
+                transactionType.DepositAndWithdrawType memory depositAndWithDrawData = abi.decode(randomTransaction,(transactionType.DepositAndWithdrawType));
+                
+                address callerAddress;
+                address refundAddress;
+                Vault vault; // caller vault
+                address targetChainAddress;
+                address zionToAddress = users_on_zion[depositAndWithDrawData.zionToAddressIndex];
+                ZionPegToken pegToken = pegTokens[depositAndWithDrawData.asset];
+                Vault targetVault = Vault(Utils.bytesToAddress(pegToken.branchMap(depositAndWithDrawData.targetChainID)));
+                address targetAssetAddress = targetVault.underlyingToken();
+                
+                
+                if (depositAndWithDrawData.callerUserChainID == 5) {
+                    callerAddress = users_on_ethereum[depositAndWithDrawData.callerUserAddressIndex];
+                    refundAddress = users_on_ethereum[depositAndWithDrawData.refundAddressIndex];
+                    vault=vaults[0+depositAndWithDrawData.asset];
+                } else if (depositAndWithDrawData.callerUserChainID == 6) {
+                    callerAddress = users_on_bsc[depositAndWithDrawData.callerUserAddressIndex];
+                    refundAddress = users_on_bsc[depositAndWithDrawData.refundAddressIndex];
+                    vault=vaults[3+depositAndWithDrawData.asset];
+                } else if (depositAndWithDrawData.callerUserChainID == 7 ) {
+                    callerAddress = users_on_polygon[depositAndWithDrawData.callerUserAddressIndex];
+                    refundAddress = users_on_polygon[depositAndWithDrawData.refundAddressIndex];
+                    vault=vaults[6+depositAndWithDrawData.asset];
+                }
+
+                if (depositAndWithDrawData.targetChainID == 5) {
+                    targetChainAddress = users_on_ethereum[depositAndWithDrawData.targetAddressIndex];
+                } else if (depositAndWithDrawData.targetChainID == 6) {
+                    targetChainAddress = users_on_bsc[depositAndWithDrawData.targetAddressIndex];
+                } else if (depositAndWithDrawData.targetChainID == 7 ) {
+                    targetChainAddress = users_on_polygon[depositAndWithDrawData.targetAddressIndex];
+                }
+
+                uint nativeEtherAmount;
+                vm.startPrank(callerAddress);
+                if (depositAndWithDrawData.callerUserChainID==5 && depositAndWithDrawData.asset==0 ) { // chainId5 native ether
+                    nativeEtherAmount = depositAndWithDrawData.amount;
+                }else {
+                    nativeEtherAmount=0;
+                    ERC20(vault.underlyingToken()).approve(address(vault),depositAndWithDrawData.amount);
+                }
+
+                uint pegAmount = Helper.helper_rounding(decimalRecord[depositAndWithDrawData.callerUserChainID][depositAndWithDrawData.asset],depositAndWithDrawData.amount,false);
+                uint targetChainIdAmount = Helper.helper_rounding(decimalRecord[depositAndWithDrawData.targetChainID][depositAndWithDrawData.asset],pegAmount,true);
+                
+                // if asset is 0, there are two situations:
+                // ethereum is callChainID or ethereum is targetChainid
+                // both these situations above, ethereum user address and vualt balance calculating by ether
+                // and when zionReceiveAddressBalanceIncreasing is true, target etherum chain don't do anything.
+                
+                
+
+                mockChainIDChannel.setCurrentlyChainID(depositAndWithDrawData.callerUserChainID);
+                try vault.depositeAndWithdraw{value: nativeEtherAmount}(
+                    refundAddress, 
+                    abi.encodePacked(zionToAddress),
+                    abi.encodePacked(targetChainAddress),
+                    depositAndWithDrawData.targetChainID,depositAndWithDrawData.amount) 
+                {
                     
-                    address callerAddress;
-                    address refundAddress;
-                    Vault vault; // caller vault
-                    address targetChainAddress;
-                    address zionToAddress = users_on_zion[zionToAddressIndex];
-                    ZionPegToken pegToken = pegTokens[asset];
-                    Vault targetVault = Vault(Utils.bytesToAddress(pegToken.branchMap(targetChainID)));
-                    address targetAssetAddress = targetVault.underlyingToken();
-                    
-                    
-                    if (callerUserChainID == 5) {
-                        callerAddress = users_on_ethereum[callerUserAddressIndex];
-                        refundAddress = users_on_ethereum[refundAddressIndex];
-                        vault=vaults[0+asset];
-                    } else if (callerUserChainID == 6) {
-                        callerAddress = users_on_bsc[callerUserAddressIndex];
-                        refundAddress = users_on_bsc[refundAddressIndex];
-                        vault=vaults[3+asset];
-                    } else if (callerUserChainID == 7 ) {
-                        callerAddress = users_on_polygon[callerUserAddressIndex];
-                        refundAddress = users_on_polygon[refundAddressIndex];
-                        vault=vaults[6+asset];
-                    }
+                    // 金库和user address都受native ether影响！
 
-                    if (targetChainID == 5) {
-                        targetChainAddress = users_on_ethereum[targetAddressIndex];
-                    } else if (targetChainID == 6) {
-                        targetChainAddress = users_on_bsc[targetAddressIndex];
-                    } else if (targetChainID == 7 ) {
-                        targetChainAddress = users_on_polygon[targetAddressIndex];
-                    }
+                    // depositAndWithDraw success                                                                                    
+                    if (!(pegToken.chainLiquidityMap(depositAndWithDrawData.targetChainID) < targetChainIdAmount)) {
+                        userState[depositAndWithDrawData.targetChainID][targetAssetAddress][targetChainAddress]+=targetChainIdAmount;
+                        PegTokensSideChainLiquidity[address(pegToken)][depositAndWithDrawData.callerUserChainID] += pegAmount;
+                        vaultState[depositAndWithDrawData.callerUserChainID][address(vault)] += depositAndWithDrawData.amount;
 
-                    uint nativeEtherAmount;
-                    vm.startPrank(callerAddress);
-                    if (callerUserChainID==5 && asset==0 ) { // chainId5 native ether
-                        nativeEtherAmount = amount;
-                    }else {
-                        nativeEtherAmount=0;
-                        ERC20(vault.underlyingToken()).approve(address(vault),amount);
-                    }
-
-                    uint pegAmount = Helper.helper_rounding(decimalRecord[callerUserChainID][asset],amount,false);
-                    uint targetChainIdAmount = Helper.helper_rounding(decimalRecord[targetChainID][asset],pegAmount,true);
-                    
-                    // if asset is 0, there are two situations:
-                    // ethereum is callChainID or ethereum is targetChainid
-                    // both these situations above, ethereum user address and vualt balance calculating by ether
-                    // and when zionReceiveAddressBalanceIncreasing is true, target etherum chain don't do anything.
-                    
-                    
-
-                    mockChainIDChannel.setCurrentlyChainID(callerUserChainID);
-                    try vault.depositeAndWithdraw{value: nativeEtherAmount}(refundAddress, abi.encodePacked(zionToAddress),
-                                                                                abi.encodePacked(targetChainAddress),targetChainID,amount) {
-                        
-                        // 金库和user address都受native ether影响！
-
-                        // depositAndWithDraw success                                                                                    
-                        if (!(pegToken.chainLiquidityMap(targetChainID) < targetChainIdAmount)) {
-                            userState[targetChainID][targetAssetAddress][targetChainAddress]+=targetChainIdAmount;
-                            PegTokensSideChainLiquidity[address(pegToken)][callerUserChainID] += pegAmount;
-                            vaultState[callerUserChainID][address(vault)] += amount;
-
-                            PegTokensSideChainLiquidity[address(pegToken)][targetChainID] -= pegAmount;
-                            vaultState[targetChainID][address(targetVault)] -= targetChainIdAmount;
-                            userState[callerUserChainID][address(vault.underlyingToken())][callerAddress] -= amount;
-                            // 
-                            if (!(callerUserChainID==5 && asset==0)) { // that also mean target asset is not ether erc20 token
-                                // ERC20(targetVault.underlyingToken()).balanceOf()
-                                
-                            } else {
-                                
-                            }
-
-                            if (!(targetChainID==5 && asset==0)){
-                                
-                            } else {
-                                
-                            }                            
-                        } else { // targetChain liquidity is not enough
-                            PegTokensSideChainLiquidity[address(pegToken)][callerUserChainID]+=pegAmount;
-                            vaultState[callerUserChainID][address(vault)] += amount;
-
-                            userState[1][address(pegToken)][zionToAddress] += pegAmount;
-                            PegTokensTotalSupplyState[address(pegToken)] += pegAmount;
-                            userState[callerUserChainID][address(vault.underlyingToken())][callerAddress] -= amount;
-
-                            if (!(callerUserChainID==5 && asset==0)) {
-                                
-                            } else {
-                                
-                            }
+                        PegTokensSideChainLiquidity[address(pegToken)][depositAndWithDrawData.targetChainID] -= pegAmount;
+                        vaultState[depositAndWithDrawData.targetChainID][address(targetVault)] -= targetChainIdAmount;
+                        userState[depositAndWithDrawData.callerUserChainID][address(vault.underlyingToken())][callerAddress] -= depositAndWithDrawData.amount;
+                        // 
+                        if (!(depositAndWithDrawData.callerUserChainID==5 && depositAndWithDrawData.asset==0)) { // that also mean target asset is not ether erc20 token
+                            // ERC20(targetVault.underlyingToken()).balanceOf()
+                            
+                        } else {
+                            
                         }
+
+                        if (!(depositAndWithDrawData.targetChainID==5 && depositAndWithDrawData.asset==0)){
+                            
+                        } else {
+                            
+                        }                            
+                    } else { // targetChain liquidity is not enough
+                        PegTokensSideChainLiquidity[address(pegToken)][depositAndWithDrawData.callerUserChainID]+=pegAmount;
+                        vaultState[depositAndWithDrawData.callerUserChainID][address(vault)] += depositAndWithDrawData.amount;
+
+                        userState[1][address(pegToken)][zionToAddress] += pegAmount;
+                        PegTokensTotalSupplyState[address(pegToken)] += pegAmount;
+                        userState[depositAndWithDrawData.callerUserChainID][address(vault.underlyingToken())][callerAddress] -= depositAndWithDrawData.amount;
+
+                        if (!(depositAndWithDrawData.callerUserChainID==5 && depositAndWithDrawData.asset==0)) {
+                            
+                        } else {
+                            
+                        }
+                    }
                     
                     
                     } catch {
@@ -504,13 +492,13 @@ contract AllTest is Test {
                 // 失败原因分外部硬性失败和内部失败。硬性失败值跨链发起方钱不够。内部失败指目标链流动性不够。
 
             }else if (operationType == 2) { // 2 is withdraw
-                // (
-                //     uint8 _operationType,
-                //     uint8 zionCallerAddressIndex,
-                //     uint8 asset,
-                //     uint8 targetAddressIndex,
-                //     uint64 targetChainID,
-                //     uint256 amount)=abi.decode(randomTransaction,(uint8,uint8,uint8,uint8,uint64,uint256));
+                (
+                    uint8 _operationType,
+                    uint8 zionCallerAddressIndex,
+                    uint8 asset,
+                    uint8 targetAddressIndex,
+                    uint64 targetChainID,
+                    uint256 amount)=abi.decode(randomTransaction,(uint8,uint8,uint8,uint8,uint64,uint256));
 
             }
 
