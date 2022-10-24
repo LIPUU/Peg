@@ -296,7 +296,7 @@ contract AllTest is Test {
         command[0] = "./random_transaction_generator";
 
         bytes memory randomTransaction;
-        for (uint i=0;i<1;++i) {
+        for (uint i=0;i<100;++i) {
             randomTransaction = vm.ffi(command);
             uint operationType;
             assembly {
@@ -400,9 +400,12 @@ contract AllTest is Test {
                     
                     address callerAddress;
                     address refundAddress;
-                    Vault vault;
+                    Vault vault; // caller vault
                     address targetChainAddress;
                     address zionToAddress = users_on_zion[zionToAddressIndex];
+                    ZionPegToken pegToken = pegTokens[asset];
+                    Vault targetVault = Vault(Utils.bytesToAddress(pegToken.branchMap(targetChainID)));
+                    address targetAssetAddress = targetVault.underlyingToken();
                     
                     
                     if (callerUserChainID == 5) {
@@ -436,29 +439,78 @@ contract AllTest is Test {
                         ERC20(vault.underlyingToken()).approve(address(vault),amount);
                     }
 
-                    mockChainIDChannel.setCurrentlyChainID(callerUserChainID);
-                    // try vault.depositeAndWithdraw{value: nativeEtherAmount}(refundAddress, abi.encodePacked(zionToAddress),
-                    //                                                             abi.encodePacked(targetChainAddress),targetChainID,amount) {
-                    //     console.log("right");
-                    // } catch {
-                    //     console.log("wrong");
-                    // }
+                    uint pegAmount = Helper.helper_rounding(decimalRecord[callerUserChainID][asset],amount,false);
+                    uint targetChainIdAmount = Helper.helper_rounding(decimalRecord[targetChainID][asset],pegAmount,true);
+                    
+                    // if asset is 0, there are two situations:
+                    // ethereum is callChainID or ethereum is targetChainid
+                    // both these situations above, ethereum user address and vualt balance calculating by ether
+                    // and when zionReceiveAddressBalanceIncreasing is true, target etherum chain don't do anything.
+                    
+                    
 
-                    vault.depositeAndWithdraw{value: nativeEtherAmount}(refundAddress, abi.encodePacked(zionToAddress),
-                                                                                 abi.encodePacked(targetChainAddress),targetChainID,amount);
+                    mockChainIDChannel.setCurrentlyChainID(callerUserChainID);
+                    try vault.depositeAndWithdraw{value: nativeEtherAmount}(refundAddress, abi.encodePacked(zionToAddress),
+                                                                                abi.encodePacked(targetChainAddress),targetChainID,amount) {
+                        
+                        // 金库和user address都受native ether影响！
+
+                        // depositAndWithDraw success                                                                                    
+                        if (!(pegToken.chainLiquidityMap(targetChainID) < targetChainIdAmount)) {
+                            userState[targetChainID][targetAssetAddress][targetChainAddress]+=targetChainIdAmount;
+                            PegTokensSideChainLiquidity[address(pegToken)][callerUserChainID] += pegAmount;
+                            vaultState[callerUserChainID][address(vault)] += amount;
+
+                            PegTokensSideChainLiquidity[address(pegToken)][targetChainID] -= pegAmount;
+                            vaultState[targetChainID][address(targetVault)] -= targetChainIdAmount;
+                            userState[callerUserChainID][address(vault.underlyingToken())][callerAddress] -= amount;
+                            // 
+                            if (!(callerUserChainID==5 && asset==0)) { // that also mean target asset is not ether erc20 token
+                                // ERC20(targetVault.underlyingToken()).balanceOf()
+                                
+                            } else {
+                                
+                            }
+
+                            if (!(targetChainID==5 && asset==0)){
+                                
+                            } else {
+                                
+                            }                            
+                        } else { // targetChain liquidity is not enough
+                            PegTokensSideChainLiquidity[address(pegToken)][callerUserChainID]+=pegAmount;
+                            vaultState[callerUserChainID][address(vault)] += amount;
+
+                            userState[1][address(pegToken)][zionToAddress] += pegAmount;
+                            PegTokensTotalSupplyState[address(pegToken)] += pegAmount;
+                            userState[callerUserChainID][address(vault.underlyingToken())][callerAddress] -= amount;
+
+                            if (!(callerUserChainID==5 && asset==0)) {
+                                
+                            } else {
+                                
+                            }
+                        }
+                    
+                    
+                    } catch {
+                        
+                    }
+
+                    
                     
                 
                     vm.stopPrank();
                 // 失败原因分外部硬性失败和内部失败。硬性失败值跨链发起方钱不够。内部失败指目标链流动性不够。
 
             }else if (operationType == 2) { // 2 is withdraw
-                (
-                    uint8 _operationType,
-                    uint8 zionCallerAddressIndex,
-                    uint8 asset,
-                    uint8 targetAddressIndex,
-                    uint64 targetChainID,
-                    uint256 amount)=abi.decode(randomTransaction,(uint8,uint8,uint8,uint8,uint64,uint256));
+                // (
+                //     uint8 _operationType,
+                //     uint8 zionCallerAddressIndex,
+                //     uint8 asset,
+                //     uint8 targetAddressIndex,
+                //     uint64 targetChainID,
+                //     uint256 amount)=abi.decode(randomTransaction,(uint8,uint8,uint8,uint8,uint64,uint256));
 
             }
 

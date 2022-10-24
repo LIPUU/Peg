@@ -8,7 +8,7 @@ abstract contract Core {
     bytes constant BRANCH_RECEIVE_METHOD_BYTES = "0x726563656976654d657373616765"; // receiveMessage
 
     address managerContractAddress;
-    mapping(uint64 => bytes) public branchMap; // chainID->side chain vault address(zion上的本pegToken对应的代币)
+    mapping(uint64 => bytes) public branchMap; // chainID->side chain vault address(本pegToken对应的代币)
     // 假设zion上的某种pegToken是usdtPegToken，它将能够在zion连接到的生态系统内的任意链上兑换出usdt。
     modifier onlyManagerContract {
         require(msg.sender == managerContractAddress, "msgSender is not CrossChainManagerContract");
