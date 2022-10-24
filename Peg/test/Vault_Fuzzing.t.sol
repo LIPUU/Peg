@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity 0.8.17;
 
 import "forge-std/Test.sol";
 import "core/Vault.sol";
@@ -297,7 +297,7 @@ contract AllTest is Test {
         command[0] = "./random_transaction_generator";
 
         bytes memory randomTransaction;
-        for (uint i=0;i<100;++i) {
+        for (uint i=0;i<10000;++i) {
             randomTransaction = vm.ffi(command);
             uint operationType;
             assembly {
@@ -374,7 +374,7 @@ contract AllTest is Test {
                     assertEq(vaultState[depositData.callerUserChainID][address(vault)], ERC20(vault.underlyingToken()).balanceOf(address(vault)));
                     assertEq(userState[depositData.callerUserChainID][vault.underlyingToken()][callerAddress],ERC20(vault.underlyingToken()).balanceOf(callerAddress));
                 }
-                
+                delete depositData;
                 vm.stopPrank();
                 
                 
@@ -499,7 +499,10 @@ contract AllTest is Test {
                     uint8 targetAddressIndex,
                     uint64 targetChainID,
                     uint256 amount)=abi.decode(randomTransaction,(uint8,uint8,uint8,uint8,uint64,uint256));
-
+                    
+                    Vault targetChainVault =  Vault(Utils.bytesToAddress(pegToken.branchMap(targetChainID)));
+                    address zionAddress = users_on_zion[zionCallerAddressIndex];
+                    
             }
 
         }
